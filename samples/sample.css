@@ -1,0 +1,20 @@
+html {
+    display: block;
+}
+
+head {
+    display: none;
+}
+
+body {
+    display: block;
+    margin: 8px;
+}
+
+.gold-div {
+    background-color: gold;
+}
+
+#image {
+    padding: 10px;
+}
