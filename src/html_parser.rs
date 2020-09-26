@@ -307,8 +307,8 @@ fn is_valid_attr_name(c: char) -> bool {
 fn is_control(ch: char) -> bool {
     return match ch {
         '\u{007F}' => true,
-        c if c >= '\u{0000}' && c <= '\u{001F}' => true,
-        c if c >= '\u{0080}' && c <= '\u{009F}' => true,
+        c if (c >= '\u{0000}' && c <= '\u{001F}') => true,
+        c if (c >= '\u{0080}' && c <= '\u{009F}') => true,
         _ => false,
     }
 }
