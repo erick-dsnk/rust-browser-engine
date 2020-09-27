@@ -88,9 +88,69 @@ impl<'a> CssParser<'a> {
                         multiple_ids = true;
 
                         self.parse_id();
+                    } else {
+                        simple_sel.id = self.parse_id();
                     }
                 }
+
+                Some(&c) if c == '.' => {
+                    self.chars.next();
+
+                    let class_name = self.parse_identifier();
+
+                    if class_name != String::from("") {
+                        simple_sel.classes.push(class_name);
+                    }
+                }
+
+                _ => { self.consume_while(|c| c != ',' && c != '{'); }
             }
         };
+
+        if simple_sel != SimpleSelector::default() {
+            sel.simple.push(simple_sel)
+        };
+
+        return sel
+    }
+
+    fn parse_identifier(&mut self) -> String {
+        let mut indent = String::new();
+
+        match self.chars.peek() {
+            Some(&c) => if is_valid_start_indent(c) {
+                indent.push_str(&self.consume_while(is_valid_indent))
+            },
+            None => {}
+        }
+
+        indent.to_lowercase();
+    }
+
+    fn parse_id(&mut self) -> Option<String> {
+        match &self.parse_identifier()[..] {
+            "" => None,
+            s @ _ => Some(s.to_string()),
+        }
+    }
+
+    fn parse_declarations(&mut self) -> Vec<Declaration> {
+        let mut declarations = Vec::<Declaration>::new();
+
+        while self.chars.peek().map_or(false, |c| *c != '}') {
+            self.consume_while(char::is_whitespace);
+
+            let property = self.consume_while(|x| x != ':').to_lowercase();
+
+            self.chars.next();
+
+            self.consume_while(char::is_whitespace);
+
+            let value = self.consume_while(|x| x != ';' && x != '\n' && x != '}').to_lowercase();
+
+            let value_enum = match property.as_ref();
+        }
+
+        return declarations
     }
 }

@@ -1,38 +1,44 @@
 use std::fmt;
 use std::default::Default;
 
-
+#[derive(PartialEq)]
 pub struct Stylesheet {
     pub rules: Vec<Rule>,
 }
 
+#[derive(PartialEq)]
 pub struct Rule {
     pub selectors: Vec<Selector>,
     pub declarations: Vec<Declaration>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Selector {
     pub simple: Vec<SimpleSelector>,
     pub combinators: Vec<char>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct SimpleSelector {
     pub tag_name: Option<String>,
     pub id: Option<String>,
     pub classes: Vec<String>,
 }
 
+#[derive(PartialEq)]
 pub struct Declaration {
     pub property: String,
     pub value: Value
 }
 
+#[derive(PartialEq)]
 pub enum Value {
     Color(Color),
     Length(f32, Unit),
     Other(String)
 }
 
+#[derive(PartialEq)]
 pub enum Unit {
     Em,
     Ex,
@@ -52,6 +58,7 @@ pub enum Unit {
     Pct,
 }
 
+#[derive(PartialEq, Clone)]
 pub struct Color {
     r: f32,
     g: f32,
