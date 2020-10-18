@@ -29,7 +29,7 @@ impl<'a> CssParser<'a> {
 
         while self.chars.peek().is_some() {
             let selectors = self.parse_selectors();
-            let styles = self.parse_styles();
+            let styles = self.parse_declarations();
             let rule = Rule::new(selectors, styles);
 
             sheet.rules.push(rule);
@@ -124,11 +124,11 @@ impl<'a> CssParser<'a> {
             None => {}
         }
 
-        indent.to_lowercase();
+        return indent.to_lowercase()
     }
 
     fn parse_id(&mut self) -> Option<String> {
-        match &self.parse_identifier()[..] {
+        return match &self.parse_identifier()[..] {
             "" => None,
             s @ _ => Some(s.to_string()),
         }
@@ -148,9 +148,95 @@ impl<'a> CssParser<'a> {
 
             let value = self.consume_while(|x| x != ';' && x != '\n' && x != '}').to_lowercase();
 
-            let value_enum = match property.as_ref();
+            let value_enum = match property.as_ref() {
+                "background-color" | "border-color" | "color" => {
+                    Value::Color(translate_color(&value))
+                },
+                "margin-right" |
+                "margin-bottom" |
+                "margin-left" |
+                "margin-top" |
+                "padding-right" |
+                "padding-bottom" |
+                "padding-left" |
+                "padding-top" |
+                "border-right-width" |
+                "border-bottom-width" |
+                "border-left-width" |
+                "border-top-width" |
+                "height" |
+                "width" => translate_length(&value),
+                _ => Value::Other(value)
+            };
+
+            let declaration = Declaration::new(property, value_enum);
+
+            if self.chars.peek().map_or(false, |c| *c == ';') {
+                declarations.push(declaration);
+                self.chars.next();
+            } else {
+                self.consume_while(char::is_whitespace);
+
+                if self.chars.peek().map_or(false, |c| *c == '}') {
+                    declarations.push(declaration);
+                }
+            };
+
+            self.consume_while(char::is_whitespace);
         }
 
+        self.chars.next();
+
         return declarations
+    }
+
+    fn consume_while<F>(&mut self, condition: F) -> String
+    where
+        F: Fn(char) -> bool,
+    {
+        let mut result = String::new();
+
+        while self.chars.peek().map_or(false, |c| condition(*c)) {
+            result.push(self.chars.next().unwrap());
+        };
+        
+        return result
+    }
+}
+
+fn translate_length(value: &str) -> Value {
+    let mut num_string = String::new();
+    let mut unit = String::new();
+    let mut parsing_num = true;
+
+    for c in value.chars() {
+        if c.is_numeric() && parsing_num {
+            num_string.push(c);
+        } else {
+            unit.push(c);
+            parsing_num = false;
+        }
+    };
+
+    let number = num_string.parse().unwrap_or(0.0);
+
+    return match unit.as_ref() {
+        "em" => Value::Length(number, Unit::Em),
+        "ex" => Value::Length(number, Unit::Ex),
+        "ch" => Value::Length(number, Unit::Ch),
+        "rem" => Value::Length(number, Unit::Rem),
+        "vh" => Value::Length(number, Unit::Vh),
+        "vw" => Value::Length(number, Unit::Vw),
+        "vmin" => Value::Length(number, Unit::Vmin),
+        "vmax" => Value::Length(number, Unit::Vmax),
+        "px" => Value::Length(number, Unit::Px),
+        "mm" => Value::Length(number, Unit::Mm),
+        "q" => Value::Length(number, Unit::Q),
+        "cm" => Value::Length(number, Unit::Cm),
+        "in" => Value::Length(number, Unit::In),
+        "pt" => Value::Length(number, Unit::Pt),
+        "pc" => Value::Length(number, Unit::Pc),
+        "%" => Value::Length(number, Unit::Pct),
+        _ => Value::Length(number, Unit::Px),
     }
 }
