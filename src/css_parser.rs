@@ -72,7 +72,7 @@ impl<'a> CssParser<'a> {
             _ => None,
         };
 
-        let multiple_ids = false;
+        let mut multiple_ids = false;
 
         while self.chars
             .peek()
