@@ -131,7 +131,7 @@ impl<'a> LayoutBox<'a> {
                 d.margin.left = margin_left_num;
                 d.content.width = w;
             },
-            (w, None, None) if w != 0.0 {
+            (w, None, None) if w != 0.0 => {
                 d.margin.left = underflow / 2.0;
                 d.margin.right = underflow / 2.0;
                 d.content.width = w;
@@ -187,6 +187,30 @@ impl<'a> LayoutBox<'a> {
             child.layout(*d);
 
             let new_height = child.dimensions.margin_box().height;
+
+            if new_height > max_child_height {
+                max_child_height = new_height;
+            }
+
+            match child.box_type {
+                BoxType::Block => d.content.height += child.dimensions.margin_box().height,
+                BoxType::InlineBlock => {
+                    d.current.x += child.dimensions.margin_box().width;
+
+                    if d.current.x > d.content.width {
+                        d.content.height += max_child_height;
+
+                        d.current.x = 0.0;
+
+                        child.layout(*d);
+
+                        d.current.x += child.dimensions.margin_box().width;
+                    }
+                },
+                _ => {},
+            }
+
+            prevBoxType = child.box_type.clone();
         }
     }
 
@@ -224,5 +248,141 @@ impl<'a> LayoutBox<'a> {
         d.content.x = b_box.content.x + b_box.current.x + d.margin.left + d.border.left + d.padding.left;
         d.content.y = b_box.content.y + b_box.current.y + d.margin.top + d.border.top + d.padding.top;
     }
+}
 
+impl<'a> fmt::Debug for LayoutBox<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        return write!(f, "type:\n    {:?}\n{:?}\n", self.box_type, self.dimensions)
+    }
+}
+
+impl Dimensions {
+    fn padding_box(&self) -> Rectangle {
+        return self.content.expanded(self.padding)
+    }
+
+    pub fn border_box(&self) -> Rectangle {
+        return self.padding_box().expanded(self.border);
+    }
+
+    fn margin_box(&self) -> Rectangle {
+        return self.border_box().expanded(self.margin);
+    }
+}
+
+impl fmt::Debug for Dimensions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        return write!(
+            f,
+            "content:\n    {:?}\npadding:\n    {:?}\nborder:\n    {:?}\nmargin:\n    {:?}",
+            self.content,
+            self.padding,
+            self.border,
+            self.margin
+        )
+    }
+}
+
+impl Rectangle {
+    fn expanded(&self, e: EdgeSizes) -> Rectangle {
+        return Rectangle {
+            x: self.x - e.left,
+            y: self.y - e.top,
+            width: self.width + e.left + e.right,
+            height: self.height + e.top + e.bottom,
+        }
+    }
+}
+
+impl fmt::Debug for Rectangle {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        return write!(
+            f,
+            "x: {}, y: {}, w: {}, h: {}",
+            self.x,
+            self.y,
+            self.width,
+            self.height
+        )
+    }
+}
+
+impl fmt::Debug for EdgeSizes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        return write!(
+            f,
+            "l: {} r: {} top: {} bot: {}",
+            self.left,
+            self.right,
+            self.top,
+            self.bottom
+        )
+    }
+}
+
+impl fmt::Debug for BoxType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let display_type = match *self {
+            BoxType::Block => "block",
+            BoxType::Inline => "inline",
+            BoxType::InlineBlock => "inline-block",
+            BoxType::Anonymous => "anonymous",
+        };
+
+        return write!(f, "{}", display_type)
+    }
+}
+
+fn get_abs_num(styled_node: &StyledNode, b_box: Dimensions, prop: &str) -> Option<f32> {
+    return match styled_node.value(prop) {
+        Some(ref v) => match ***v {
+            Value::Length(l, ref u) => match *u {
+                Unit::Px => Some(l),
+                Unit::Pct => Some(l * b_box.content.width / 100.0),
+                _ => panic!("unimplemented css unit length"),
+            },
+            _ => None,
+        },
+        None => None,
+    }
+}
+
+pub fn layout_tree<'a>(root: &'a StyledNode<'a>, mut containing_block: Dimensions) -> LayoutBox<'a> {
+    containing_block.content.height = 0.0;
+
+    let mut root_box = build_layout_tree(root);
+    root_box.layout(containing_block);
+    
+    return root_box
+}
+
+fn build_layout_tree<'a>(node: &'a StyledNode) -> LayoutBox<'a> {
+    let mut layout_node = LayoutBox::new(
+        match node.get_display() {
+            Display::Block => BoxType::Block,
+            Display::Inline => BoxType::Inline,
+            Display::InlineBlock => BoxType::InlineBlock,
+            Display::None => BoxType::Anonymous,
+        },
+        node,
+    );
+
+    for child in &node.children {
+        match child.get_display() {
+            Display::Block => layout_node.children.push(build_layout_tree(child)),
+            Display::Inline => layout_node.children.push(build_layout_tree(child)),
+            Display::InlineBlock => layout_node.children.push(build_layout_tree(child)),
+            Display::None => {},
+        }
+    }
+
+    return layout_node
+}
+
+pub fn pretty_print<'a>(n: &'a LayoutBox, level: usize) {
+    println!("{}{:?}\n", level, n);
+
+    for child in n.children.iter() {
+        pretty_print(&child, level + 1);
+    }
 }
