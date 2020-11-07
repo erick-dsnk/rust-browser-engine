@@ -11,7 +11,6 @@ use crate::css::{
 use std::iter::Peekable;
 use std::str::Chars;
 
-
 pub struct CssParser<'a> {
     chars: Peekable<Chars<'a>>
 }
